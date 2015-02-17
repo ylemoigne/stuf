@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Yann Le Moigne
+ * Copyright 2015 Yann Le Moigne
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,17 @@
  * limitations under the License.
  */
 
+plugins {
+    id "com.jfrog.bintray" version "1.1"
+}
+
 apply plugin: 'java'
+apply plugin: 'maven-publish'
 
 sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+group = 'fr.javatic.stuf'
 version = '0.1'
 
 repositories {
@@ -31,4 +39,99 @@ dependencies {
     testCompile 'junit:junit:4.12'
     testCompile 'org.spockframework:spock-core:0.7-groovy-2.0'
     testCompile 'com.athaydes:spock-reports:1.2.3'
+}
+
+tasks.withType(Javadoc) {
+    options.links('http://docs.oracle.com/javase/8/docs/api/')
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from 'build/docs/javadoc'
+}
+
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allSource
+    classifier = 'sources'
+}
+
+def projectInfo = [
+        description: 'STUF is library which add some utils class and interface in Java mainly (but not only) usefull in the context of Streams and Lambda',
+        url        : 'https://github.com/ylemoigne/stuf',
+        issues     : 'https://github.com/ylemoigne/stuf/issues',
+        tags       : ['java8', 'stream', 'tuples', 'functions'],
+        scm        : [
+                url     : "git@github.com:ylemoigne/stuf.git",
+                mavenUrl: "scm:git:git@github.com:ylemoigne/stuf.git",
+        ],
+        license    : [
+                shortName: 'Apache-2.0',
+                fullName : 'The Apache Software License, Version 2.0',
+                url      : 'http://www.apache.org/licenses/LICENSE-2.0.txt',
+        ]
+]
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact javadocJar
+
+            pom.withXml {
+                asNode().children().last() + {
+                    resolveStrategy = Closure.DELEGATE_FIRST
+
+                    name project.name
+                    description projectInfo.description
+                    url projectInfo.url
+
+                    scm {
+                        connection projectInfo.scm.mavenUrl
+                        developerConnection projectInfo.scm.mavenUrl
+                        url projectInfo.scm.url
+                    }
+
+                    licenses {
+                        license {
+                            name projectInfo.license.fullName
+                            url projectInfo.license.url
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            name "Yann Le Moigne"
+                            email "ylemoigne@javatic.fr"
+                            organization "JavaTIC"
+                            organizationUrl "http://www.javatic.fr"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+bintray {
+    user = bintrayUser
+    key = bintrayKey
+    publications = ['mavenJava']
+    pkg {
+        repo = 'maven'
+        name = project.name
+        desc = projectInfo.description
+        websiteUrl = projectInfo.url
+        issueTrackerUrl = projectInfo.issues
+        vcsUrl = projectInfo.scm.url
+        licenses = [projectInfo.license.shortName]
+        labels = projectInfo.tags
+        version {
+            gpg {
+                sign = true
+                passphrase = gpgPassphrase
+            }
+        }
+    }
 }

@@ -27,3 +27,22 @@ Functions.
 ----------
 Simple interface representing function up to 26 parameters.
 Interface are conceived to works well also with tuples.
+
+Usage.
+------
+
+Maven
+
+    TODO
+
+Gradle
+
+    repositories {
+        maven {
+            url "http://dl.bintray.com/ylemoigne/maven"
+        }
+    }
+
+    dependencies {
+        compile 'fr.javatic.stuf:stuf:0.1'
+    }

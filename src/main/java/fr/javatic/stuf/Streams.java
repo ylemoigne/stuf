@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Yann Le Moigne
+ * Copyright 2015 Yann Le Moigne
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ public class Streams {
      * The stream finish when the supplier throw <code>NoSuchElementException</code>.
      *
      * @param s the supplier.
+     * @param <A> Type of stream.
      * @return the stream.
      */
     public static <A> Stream<A> from(Supplier<A> s) {
@@ -101,6 +102,8 @@ public class Streams {
      * If you want to consume only one the stream, simply map it : <code>input.map(Tuple2::_1)</code>.
      *
      * @param input Stream of Tuple2.
+     * @param <A> The A type.
+     * @param <B> The B type.
      * @return A Tuple2 of Stream.
      */
     public static <A, B> Tuple2<Stream<A>, Stream<B>> unzip(Stream<Tuple2<A, B>> input) {
