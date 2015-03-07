@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Yann Le Moigne
+ * Copyright 2015 Yann Le Moigne
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import fr.javatic.stuf.consumers.Consumer1
 import fr.javatic.stuf.functions.Function1
 import spock.lang.Specification
 
-import java.util.function.Predicate
 import java.util.function.Supplier
 
 class TryTest extends Specification {
@@ -99,6 +98,9 @@ class TryTest extends Specification {
         null                      | null
     }
 
+    static def e1 = new IllegalArgumentException()
+    static def e2 = new RuntimeException("bar")
+    static def e3 = new IndexOutOfBoundsException()
 
     def "Try construction as a Failure"() {
         given:
@@ -119,11 +121,11 @@ class TryTest extends Specification {
         f == true
 
         when:
-        "I use get"
-        r.get()
+        "I use getFailure"
+        def f1 = r.getFailure()
         then:
-        "the contained exception is thrown"
-        thrown(type)
+        "the contained exception is the constructed exception"
+        f1.get() == type
 
         when:
         "I use map"
@@ -140,15 +142,8 @@ class TryTest extends Specification {
         r2 == r
 
         when:
-        "I use filter"
-        def r3 = r.filter({ String i -> i.startsWith("foo") } as Predicate)
-        then:
-        "it should return a itself"
-        r3 == r
-
-        when:
         "I use toOptional"
-        def o = r.toOptional();
+        def o = r.getSuccess();
         then:
         "it should return an empty Optional"
         o.isPresent() == false
@@ -160,18 +155,10 @@ class TryTest extends Specification {
         then:
         "it should return a success Try with this value"
         r4.isSuccess() == true
-        r4.get() == "pouet"
+        r4.getSuccess().get() == "pouet"
         r5.isSuccess() == true
-        r5.get() == "pouet"
+        r5.getSuccess().get() == "pouet"
 
-        when:
-        "I use recoverWith with a function which throw an Exception"
-        def r6 = r.recoverWith({ RuntimeException e -> throw new IndexOutOfBoundsException() } as Function1);
-        r6.get()
-        then:
-        "it should return a failure Try with this exception"
-        r6.isSuccess() == false
-        thrown(IndexOutOfBoundsException)
 
         when:
         "I use recoverWith with a function which return a value"
@@ -179,7 +166,7 @@ class TryTest extends Specification {
         then:
         "it should return a success Try with this exception"
         r7.isSuccess() == true
-        r7.get() == "tagada"
+        r7.getSuccess().get() == "tagada"
 
         when:
         "I use forEach"
@@ -190,9 +177,9 @@ class TryTest extends Specification {
         v == "pouet"
 
         where:
-        r                                                             | type
-        Try.failure(new IllegalArgumentException())                   | IllegalArgumentException
-        Try.create({ throw new RuntimeException("bar") } as Supplier) | RuntimeException
+        type | r
+        e1   | Try.failure(e1)
+        e2   | Try.create({ throw e2 } as Supplier)
     }
 
     def "Try construction as a Success"() {
@@ -214,11 +201,11 @@ class TryTest extends Specification {
         f == false
 
         when:
-        "I use get"
-        def v = r.get()
+        "I use getSuccess"
+        def v = r.getSuccess()
         then:
         "the contained value is returned"
-        v == val
+        v.get() == val
 
         when:
         "I use map"
@@ -235,26 +222,11 @@ class TryTest extends Specification {
         r2 == Try.success(val + val)
 
         when:
-        "I use filter which match"
-        def r3 = r.filter({ String i -> i == val } as Predicate)
+        "I use getFailure"
+        def o = r.getFailure();
         then:
-        "it should return itself"
-        r3 == r
-
-        when:
-        "I use filter which doesn't match"
-        def r3match = r.filter({ String i -> i != val } as Predicate)
-        then:
-        "it should return a failure"
-        r3match.isFailure() == true
-
-        when:
-        "I use toOptional"
-        def o = r.toOptional();
-        then:
-        "it should return an Optional containing the value"
-        o.isPresent() == true
-        o.get() == val
+        "it should return an empty Optional"
+        o.isPresent() == false
 
         when:
         "I use orElse(value)"
@@ -267,11 +239,9 @@ class TryTest extends Specification {
 
         when:
         "I use recoverWith"
-        def r6 = r.recoverWith({ RuntimeException e -> throw new IndexOutOfBoundsException() } as Function1);
         def r7 = r.recoverWith({ RuntimeException e -> "tagada" } as Function1);
         then:
         "it should return a failure Try with this exception"
-        r6 == r
         r7 == r
 
         when:

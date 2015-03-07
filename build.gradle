@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+
+
 plugins {
     id "com.jfrog.bintray" version "1.1"
 }
@@ -25,7 +27,7 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 group = 'fr.javatic.stuf'
-version = '0.1'
+version = '0.3'
 
 repositories {
     mavenCentral()

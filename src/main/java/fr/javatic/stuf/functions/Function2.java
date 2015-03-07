@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Yann Le Moigne
+ * Copyright 2015 Yann Le Moigne
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,19 @@ package fr.javatic.stuf.functions;
 import fr.javatic.stuf.tuples.Tuple2;
 
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 @FunctionalInterface
 public interface Function2<A, B, ZZ> extends BiFunction<A, B, ZZ> {
     default ZZ apply(Tuple2<A, B> t) {
         return apply(t._1, t._2);
+    }
+
+    default Function<B, ZZ> curry(A a) {
+        return b -> apply(a, b);
+    }
+
+    default Function2<B, A, ZZ> flip() {
+        return (b, a) -> apply(a, b);
     }
 }

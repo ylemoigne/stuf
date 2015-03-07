@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Yann Le Moigne
+ * Copyright 2015 Yann Le Moigne
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,12 @@ package fr.javatic.stuf;
 import fr.javatic.stuf.functions.Function1;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-public abstract class Try<A> {
-    public static <T> Try<T> create(Supplier<T> supplier) {
+public abstract class Try<A, Z> {
+    public static <T> Try<T, RuntimeException> create(Supplier<T> supplier) {
         try {
             return success(supplier.get());
         } catch (RuntimeException e) {
@@ -34,37 +32,93 @@ public abstract class Try<A> {
         }
     }
 
-    public static <T> Try<T> success(T value) {
+    public static <T, Z> Try<T, Z> success(T value) {
         return new Success<>(value);
     }
 
-    public static <T> Try<T> failure(RuntimeException t) {
+    public static <T, Z> Try<T, Z> failure(Z t) {
         return new Failure<>(t);
     }
+
+    public abstract Try<A, Z> onSuccess(Consumer<A> consumer);
+
+    public abstract Try<A, Z> onFailure(Consumer<Z> consumer);
 
     public abstract boolean isSuccess();
 
     public abstract boolean isFailure();
 
-    public abstract <B> Try<B> map(Function1<A, B> f);
+    public abstract <B> Try<B, Z> map(Function1<A, B> f);
 
-    public abstract <B> Try<B> flatMap(Function1<A, Try<B>> f);
+    public abstract <B> Try<B, Z> flatMap(Function1<A, Try<B, Z>> f);
 
-    public abstract Try<A> orElse(A b);
+    public abstract Try<A, Z> orElse(A b);
 
-    public abstract Try<A> orElse(Supplier<A> b);
+    public abstract Try<A, Z> orElse(Supplier<A> b);
 
-    public abstract Try<A> recoverWith(Function<Throwable, A> f);
-
-    public abstract Try<A> filter(Predicate<A> p);
+    public abstract Try<A, Z> recoverWith(Function<Z, A> f);
 
     public abstract void forEach(Consumer<? super A> action);
 
-    public abstract A get();
+    public abstract A getSuccess();
 
-    public abstract Optional<A> toOptional();
+    public abstract Z getFailure();
 
-    private static class Success<T> extends Try<T> {
+    public abstract <R> R resolve(Function1<A, R> onSuccess, Function1<Z, R> onFailure);
+
+    public <R> SuccessResolver<A, Z, R> mapSuccess(Function1<A, R> successMapper) {
+        return new SuccessResolver<>(this, successMapper);
+    }
+
+    public <R> SuccessResolver<A, Z, R> mapSuccess(R r) {
+        return new SuccessResolver<>(this, osef -> r);
+    }
+
+    public <R> FailureResolver<A, Z, R> mapFailure(Function1<Z, R> failureMapper) {
+        return new FailureResolver<>(this, failureMapper);
+    }
+
+    public <R> FailureResolver<A, Z, R> mapFailure(R r) {
+        return new FailureResolver<>(this, osef -> r);
+    }
+
+    public static class SuccessResolver<G, H, I> {
+        private final Try<G, H> t;
+        private final Function1<G, I> successMapper;
+
+        public SuccessResolver(Try<G, H> t, Function1<G, I> successMapper) {
+            this.t = t;
+            this.successMapper = successMapper;
+        }
+
+        public I mapFailure(Function1<H, I> failureMapper) {
+            return this.t.resolve(successMapper, failureMapper);
+        }
+
+        public I mapFailure(I i) {
+            return this.t.resolve(successMapper, osef -> i);
+        }
+    }
+
+    public static class FailureResolver<G, H, I> {
+        private final Try<G, H> t;
+        private final Function1<H, I> failureMapper;
+
+        public FailureResolver(Try<G, H> t, Function1<H, I> failureMapper) {
+            this.t = t;
+            this.failureMapper = failureMapper;
+        }
+
+        public I mapSuccess(Function1<G, I> successMapper) {
+            return this.t.resolve(successMapper, failureMapper);
+        }
+
+        public I mapSuccess(I i) {
+            return this.t.resolve(osef -> i, failureMapper);
+        }
+    }
+
+    private static class Success<T, Z> extends Try<T, Z> {
         private T t;
 
         public Success(T t) {
@@ -82,36 +136,38 @@ public abstract class Try<A> {
         }
 
         @Override
-        public <B> Try<B> map(Function1<T, B> f) {
-            return Try.create(() -> f.apply(t));
+        public Try<T, Z> onSuccess(Consumer<T> consumer) {
+            consumer.accept(t);
+            return this;
         }
 
         @Override
-        public <B> Try<B> flatMap(Function1<T, Try<B>> f) {
+        public Try<T, Z> onFailure(Consumer<Z> consumer) {
+            return this;
+        }
+
+        @Override
+        public <B> Try<B, Z> map(Function1<T, B> f) {
+            return Try.success(f.apply(t));
+        }
+
+        @Override
+        public <B> Try<B, Z> flatMap(Function1<T, Try<B, Z>> f) {
             return f.apply(t);
         }
 
         @Override
-        public Try<T> filter(Predicate<T> p) {
-            if (p.test(t)) {
-                return this;
-            }
-
-            return failure(new PredicateFailed());
-        }
-
-        @Override
-        public Try<T> orElse(T b) {
+        public Try<T, Z> orElse(T b) {
             return this;
         }
 
         @Override
-        public Try<T> orElse(Supplier<T> b) {
+        public Try<T, Z> orElse(Supplier<T> b) {
             return this;
         }
 
         @Override
-        public Try<T> recoverWith(Function<Throwable, T> f) {
+        public Try<T, Z> recoverWith(Function<Z, T> f) {
             return this;
         }
 
@@ -121,13 +177,18 @@ public abstract class Try<A> {
         }
 
         @Override
-        public T get() {
+        public T getSuccess() {
             return t;
         }
 
         @Override
-        public Optional<T> toOptional() {
-            return Optional.of(t);
+        public Z getFailure() {
+            throw new IllegalStateException("Can't get failure on successfull Try");
+        }
+
+        @Override
+        public <R> R resolve(Function1<T, R> onSuccess, Function1<Z, R> onFailure) {
+            return onSuccess.apply(t);
         }
 
         @Override
@@ -156,15 +217,15 @@ public abstract class Try<A> {
         @Override
         public String toString() {
             return "Success{" +
-                    "t=" + t +
-                    '}';
+                "t=" + t +
+                '}';
         }
     }
 
-    private static class Failure<T> extends Try<T> {
-        private RuntimeException t;
+    private static class Failure<T, Z> extends Try<T, Z> {
+        private Z t;
 
-        public Failure(RuntimeException t) {
+        public Failure(Z t) {
             this.t = t;
         }
 
@@ -179,33 +240,39 @@ public abstract class Try<A> {
         }
 
         @Override
-        public <B> Try<B> map(Function1<T, B> f) {
+        public Try<T, Z> onSuccess(Consumer<T> consumer) {
+            return this;
+        }
+
+        @Override
+        public Try<T, Z> onFailure(Consumer<Z> consumer) {
+            consumer.accept(t);
+            return this;
+        }
+
+        @Override
+        public <B> Try<B, Z> map(Function1<T, B> f) {
             return failure(t);
         }
 
         @Override
-        public <B> Try<B> flatMap(Function1<T, Try<B>> f) {
+        public <B> Try<B, Z> flatMap(Function1<T, Try<B, Z>> f) {
             return failure(t);
         }
 
         @Override
-        public Try<T> filter(Predicate<T> p) {
-            return failure(t);
-        }
-
-        @Override
-        public Try<T> orElse(T b) {
+        public Try<T, Z> orElse(T b) {
             return success(b);
         }
 
         @Override
-        public Try<T> orElse(Supplier<T> b) {
+        public Try<T, Z> orElse(Supplier<T> b) {
             return success(b.get());
         }
 
         @Override
-        public Try<T> recoverWith(Function<Throwable, T> f) {
-            return create(() -> f.apply(t));
+        public Try<T, Z> recoverWith(Function<Z, T> f) {
+            return success(f.apply(t));
         }
 
         @Override
@@ -213,13 +280,18 @@ public abstract class Try<A> {
         }
 
         @Override
-        public T get() {
-            throw t;
+        public T getSuccess() {
+            throw new IllegalStateException("Can't get success on failure Try");
         }
 
         @Override
-        public Optional<T> toOptional() {
-            return Optional.empty();
+        public Z getFailure() {
+            return t;
+        }
+
+        @Override
+        public <R> R resolve(Function1<T, R> onSuccess, Function1<Z, R> onFailure) {
+            return onFailure.apply(t);
         }
 
         @Override
@@ -248,11 +320,8 @@ public abstract class Try<A> {
         @Override
         public String toString() {
             return "Failure{" +
-                    "t=" + t +
-                    '}';
+                "t=" + t +
+                '}';
         }
-    }
-
-    public static class PredicateFailed extends RuntimeException {
     }
 }
