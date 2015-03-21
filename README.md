@@ -44,5 +44,5 @@ Gradle
     }
 
     dependencies {
-        compile 'fr.javatic.stuf:stuf:0.3'
+        compile 'fr.javatic.stuf:stuf:0.4'
     }

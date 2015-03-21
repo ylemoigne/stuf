@@ -32,6 +32,14 @@ public abstract class Try<A, Z> {
         }
     }
 
+    public static <T> Try<T, Throwable> create(SupplierWithThrowable<T> supplier) {
+        try {
+            return success(supplier.get());
+        } catch (Throwable e) {
+            return failure(e);
+        }
+    }
+
     public static <T, Z> Try<T, Z> success(T value) {
         return new Success<>(value);
     }
