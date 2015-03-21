@@ -64,21 +64,23 @@ public abstract class Try<A, Z> {
 
     public abstract Z getFailure();
 
+    public abstract <Y> Try<A, Y> mapFailure(Function1<Z, Y> failureMapper);
+
     public abstract <R> R resolve(Function1<A, R> onSuccess, Function1<Z, R> onFailure);
 
-    public <R> SuccessResolver<A, Z, R> mapSuccess(Function1<A, R> successMapper) {
+    public <R> SuccessResolver<A, Z, R> resolveSuccess(Function1<A, R> successMapper) {
         return new SuccessResolver<>(this, successMapper);
     }
 
-    public <R> SuccessResolver<A, Z, R> mapSuccess(R r) {
+    public <R> SuccessResolver<A, Z, R> resolveSuccess(R r) {
         return new SuccessResolver<>(this, osef -> r);
     }
 
-    public <R> FailureResolver<A, Z, R> mapFailure(Function1<Z, R> failureMapper) {
+    public <R> FailureResolver<A, Z, R> resolveFailure(Function1<Z, R> failureMapper) {
         return new FailureResolver<>(this, failureMapper);
     }
 
-    public <R> FailureResolver<A, Z, R> mapFailure(R r) {
+    public <R> FailureResolver<A, Z, R> resolveFailure(R r) {
         return new FailureResolver<>(this, osef -> r);
     }
 
@@ -91,11 +93,11 @@ public abstract class Try<A, Z> {
             this.successMapper = successMapper;
         }
 
-        public I mapFailure(Function1<H, I> failureMapper) {
+        public I resolveFailure(Function1<H, I> failureMapper) {
             return this.t.resolve(successMapper, failureMapper);
         }
 
-        public I mapFailure(I i) {
+        public I resolveFailure(I i) {
             return this.t.resolve(successMapper, osef -> i);
         }
     }
@@ -109,11 +111,11 @@ public abstract class Try<A, Z> {
             this.failureMapper = failureMapper;
         }
 
-        public I mapSuccess(Function1<G, I> successMapper) {
+        public I resolveSuccess(Function1<G, I> successMapper) {
             return this.t.resolve(successMapper, failureMapper);
         }
 
-        public I mapSuccess(I i) {
+        public I resolveSuccess(I i) {
             return this.t.resolve(osef -> i, failureMapper);
         }
     }
@@ -184,6 +186,11 @@ public abstract class Try<A, Z> {
         @Override
         public Z getFailure() {
             throw new IllegalStateException("Can't get failure on successfull Try");
+        }
+
+        @Override
+        public <Y> Try<T, Y> mapFailure(Function1<Z, Y> failureMapper) {
+            return Try.success(t);
         }
 
         @Override
@@ -292,6 +299,11 @@ public abstract class Try<A, Z> {
         @Override
         public <R> R resolve(Function1<T, R> onSuccess, Function1<Z, R> onFailure) {
             return onFailure.apply(t);
+        }
+
+        @Override
+        public <Y> Try<T, Y> mapFailure(Function1<Z, Y> failureMapper) {
+            return Try.failure(failureMapper.apply(t));
         }
 
         @Override
