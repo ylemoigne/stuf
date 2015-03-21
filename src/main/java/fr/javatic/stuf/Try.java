@@ -24,14 +24,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public abstract class Try<A, Z> {
-    public static <T> Try<T, RuntimeException> create(Supplier<T> supplier) {
-        try {
-            return success(supplier.get());
-        } catch (RuntimeException e) {
-            return failure(e);
-        }
-    }
-
     public static <T> Try<T, Throwable> create(SupplierWithThrowable<T> supplier) {
         try {
             return success(supplier.get());
